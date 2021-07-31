@@ -1,0 +1,4 @@
+
+pin-depends: [
+  ["current_docker.dev" "git+https://github.com/patricoferris/ocurrent#docker-fs"]
+]

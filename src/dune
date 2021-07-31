@@ -1,0 +1,13 @@
+(executable
+ (name main)
+ (public_name patricoferris)
+ (libraries
+  current_web
+  current_github
+  current_docker
+  current-sesame
+  current-sesame.git)
+ (preprocess
+  (pps ppx_deriving_yaml ppx_deriving_yojson)))
+
+(include_subdirs unqualified)
