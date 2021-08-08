@@ -1,3 +1,6 @@
 [submodule "unipi"]
 	path = unipi
 	url = https://github.com/patricoferris/unipi
+[submodule "hilite"]
+	path = hilite
+	url = https://github.com/patricoferris/hilite

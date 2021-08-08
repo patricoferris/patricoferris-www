@@ -12,3 +12,4 @@
   current_github
   dream
   ))
+(using mdx 0.1)

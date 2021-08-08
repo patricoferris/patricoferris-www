@@ -1,0 +1,153 @@
+@import url('https://rsms.me/inter/inter.css');
+/* Basic Theme */
+body {
+  color: var(--font-color);
+  background: var(--background-color);
+}
+
+/* CSS */
+html { font-family: 'Inter', sans-serif; }
+@supports (font-variation-settings: normal) {
+  html { font-family: 'Inter var', sans-serif; }
+}
+
+.diagram-container {
+  margin: 2em 0px;
+  text-align: center;
+}
+
+.diagram-container a {
+  border-bottom: none;
+}
+
+.diagram {
+  filter: invert(var(--invert));
+}
+
+.content p {
+  margin: 2em 0px;
+}
+
+.content {
+  max-width: 800px;
+  padding: 1.2em;
+  margin: auto;
+  font-size: 1.15em;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+}
+
+.content-body {
+  text-align: justify;
+}
+
+.nav {
+  display: flex;
+  flex-direction: row;
+  align-content: space-evenly;
+  justify-content: space-evenly;
+  padding: 1em;
+  margin: 0px 10%;
+}
+
+.index {
+  list-style-type: none;
+  padding-inline: unset;
+}
+
+.index li {
+  border: thin var(--font-color) solid;
+  padding-left: 2em;
+}
+
+ul.toc {
+  list-style-type: none;
+}
+
+li.toc-li {
+  list-style: circle;
+}
+
+.footer-container {
+  position: absolute;
+  bottom: 0px;
+}
+
+.footer {
+  text-align: right;
+  padding: 0px 25%;
+}
+
+blockquote {
+  padding: 2px 10px;
+  border-radius: 2px;
+  border-left: lightgrey thick solid;
+}
+
+.btn {
+  padding: 0.5em;
+  border: solid thin lightgrey;
+  cursor: pointer;
+}
+
+a {
+  text-decoration: none;
+  color: var(--font-color);
+  border-bottom: medium solid var(--accent-color);
+}
+
+p code {
+  border-radius: 5px;
+  background: lemonchiffon;
+  color: black;
+  font-size: large;
+  padding: 2px 6px;
+}
+
+.nav .title {
+  border-bottom: none;
+  padding: 0.5em;
+}
+
+/** CODE STYLING **/
+pre code {
+  background-color: #282828;
+  display: block;
+  padding: 1em;
+  overflow-x: auto;
+  border-radius: 5px;
+  color: #ebdbb2
+}
+
+span[class*='keyword'] {
+  color: #fb4934
+}
+
+span[class*='constant'] {
+  color: #fabd2f
+}
+
+span[class*='variable'] {
+  color: #85ebeb;
+  font-style: italic;
+}
+
+span[class*='support'] {
+  color: #83a598;
+}
+
+span[class*='literal'] {
+  color: #d3869b
+}
+
+span[class*='literal'] {
+  color: #d3869b
+}
+
+span[class*='string'] {
+  color: #b8bb26
+}
+
+span[class*='numeric'] {
+  color: #ff5683
+}

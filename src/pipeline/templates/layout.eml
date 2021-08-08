@@ -5,10 +5,17 @@ let html ~title ~description ~body =
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="description" content="<%s description %>">
+      <script defer="defer" src="/js/main.js"></script> 
       <link rel="stylesheet" href="/main.css" />
       <title><%s title %></title>
     </head>
     <body>
+      <script src="/js/root.js"></script> 
+      <div class='nav'>
+        <a class='title' href='/'>home</a>
+        <a class='title' href='https://twitter.com/patricoferris'>@patricoferris</a>
+        <a href='#' id='toggle' class='title'>toggle dark</a>
+      </div>
       <%s! body %>
     </body>
   </html>

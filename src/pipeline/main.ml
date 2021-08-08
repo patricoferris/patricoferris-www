@@ -12,24 +12,66 @@ let dst = Current.state_dir "files"
 
 let unikernel = Current.state_dir "unikernel"
 
+let gcloud_deploy () =
+  let project_id = Sys.getenv "GCLOUD_PROJECT_ID" in
+  let credentials =
+    Bos.OS.File.read (Fpath.v ".credentials") |> Rresult.R.get_ok
+  in
+  let config =
+    {
+      Gcloud.project_id;
+      credentials;
+      bucket = "patricoferris-www";
+      image_name = "patricoferris-www";
+      machine_type = `F1_micro;
+      region = "europe-west1";
+      zone = "europe-west1-b";
+    }
+  in
+  Gcloud.deploy config
+
+let drop_top_dir path =
+  match Fpath.relativize ~root:(Fpath.v "./data") path with 
+    | Some p -> p
+    | _ -> path
+
 let pipeline b_unikernel dev () =
   let db = Db.load dev in
-  let c =
-    Post.Fetch.get ~watcher ~label:"fetching collection"
+  let posts =
+    Post.Fetch.get ~watcher ~label:"fetching posts"
       ~path:(Some (Fpath.v "posts"))
       db
   in
   let htmls =
-    Post.Html.build ~label:"building html" c
+    Bos.OS.Dir.create (Fpath.(dst / "posts")) |> ignore;
+    Post.Html.build ~label:"building html" posts
     |> Current.map (fun hs ->
            List.map
              (fun { Post.H.path; html } ->
-               (Fpath.(dst // Sesame.Utils.filename_to_html (v path)), html))
+               (Fpath.(dst / "posts" // Sesame.Utils.filename_to_html (v path)), html))
              hs)
+  in
+  let pages =
+    let open Current.Syntax in
+    let* posts = posts in
+    Current.return [ (Fpath.(dst / "index.html"), Home_template.page (List.sort Post.compare posts)) ]
   in
   let html =
     Current.map (fun () -> dst)
-    @@ Current.all [ Current_sesame.Local.save_list htmls ]
+    @@ Current.all
+         [
+           Current_sesame.Local.save_list htmls;
+           Current_sesame.Local.save_list pages;
+           Copy.cp ~label:"assets"
+             ~src:(Current.return Fpath.(v "data" / "assets"))
+             dst;
+          Copy.cp ~label:"js"
+             ~src:(Current.return Fpath.(v "data" / "js"))
+             dst;
+           Copy.cp ~label:"css"
+             ~src:(Current.return Fpath.(v "data" / "css" / "main.css"))
+             dst;
+         ]
   in
   let mirage base html =
     let cp =
@@ -44,11 +86,12 @@ let pipeline b_unikernel dev () =
     in
     let build =
       Current.bind
-        ~info:(Current.component "build unikernel")
-        (fun () -> Mirage.build ~base ~out:(Current.return unikernel) dev)
+        ~info:(Current.component "site + unipi")
+        (fun _ -> Mirage.build ~base ~out:(Current.return unikernel) dev)
         cp
     in
-    Mirage.run_unikernel build
+    if dev then Mirage.run_unikernel build
+    else Current.bind ~info:(Current.component "gcloud deploy") (fun _ -> gcloud_deploy ()) build
   in
   if b_unikernel then
     let base = Current_docker.Default.pull ~schedule "ocaml/opam" in

@@ -6,7 +6,8 @@
   current_github
   current_docker
   current-sesame
-  current-sesame.git)
+  current-sesame.git
+  hilite)
  (preprocess
   (pps ppx_deriving_yaml ppx_deriving_yojson)))
 

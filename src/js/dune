@@ -1,0 +1,4 @@
+(executables
+ (names main root)
+ (libraries js_of_ocaml brr)
+ (modes js))

@@ -49,8 +49,8 @@ A RISC architecture does not imply simplicity. It is quite possible to bake-in c
 An instruction encoding format is how different types of instructions (branches, register-register operations etc.) are represented at the lowest possible level -- bits. RISC-V's instruction encoding format uses just six types and all are 32-bits wide, this can vastly reduce the complexity of the decoding logic in a CPU. Moreover, the register locations (i.e. the bit ranges where the register values are kept within the instruction) are the same across the formats. For performance, this allows registers to be accessed before decoding even begins which can help reduce the critical time path. 
 
 <div class="diagram-container">
-  <a href="/posts/riscv/diagrams/instr.svg">
-    <img class="diagram" style="width: 100%" alt="An example of location-sharing between formats" src="/posts/riscv/diagrams/instr.svg" />
+  <a href="/assets/instr.svg">
+    <img class="diagram" style="width: 100%" alt="An example of location-sharing between formats" src="/assets/instr.svg" />
     <p><em>Figure: A diagram indicating the location-sharing between R-type and I-type instruction formats.</em></p>
   </a>
 </div>
@@ -78,8 +78,8 @@ No extra logic is needed with the immediate (`0xFFFFFF00`) because it is automat
 The B-type instruction exemplifies the careful decision-making that has taken place for the different formats: 
 
 <div class="diagram-container">
-  <a href="/posts/riscv/diagrams/btype.svg">
-    <img class="diagram" style="width: 100%" alt="The B-type instruction format" src="/posts/riscv/diagrams/btype.svg" />
+  <a href="/assets/btype.svg">
+    <img class="diagram" style="width: 100%" alt="The B-type instruction format" src="/assets/btype.svg" />
     <p><em>Figure: Location-sharing, MSB-bit in place 31 and dropped lower bit of the B-type instruction.</em></p>
   </a>
 </div>

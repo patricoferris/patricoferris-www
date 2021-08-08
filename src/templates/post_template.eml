@@ -1,3 +1,0 @@
-
-let render ( { meta = _; _ } : Post_intf.C.t) body = 
-  body

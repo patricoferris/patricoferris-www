@@ -1,0 +1,12 @@
+
+let render ( { meta; _ } : Post_intf.C.t) body = 
+  <div class="content">
+    <div style="text-align: center;">
+      <h1 class="h1-title"><%s! meta.title %></h1>
+      <p class="date"><%s! meta.date %></p>
+      <hr>
+    </div>
+    <div class="content-body">
+      <%s! body %>
+    </div>
+  </div>

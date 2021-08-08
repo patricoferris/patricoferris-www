@@ -1,0 +1,24 @@
+let render_post ( { meta; path; _ } : Post_intf.C.t) =
+  let path = Fpath.((v "./posts" // Sesame.Utils.filename_to_html (v path)) |> to_string) in 
+  <li>
+    <a href="<%s path %>">
+      <%s! meta.title %>
+    </a>
+  </li>
+
+let content posts = 
+  <div class="content">
+    <p>Welcome to my corner of the web, a <a href="https://mirage.io">unikernel</a> no less. Here's a bit about me:</p>
+    <ul>
+      <li>At <a href="https://ocamllabs.io">OCaml Labs</a> working on open-source OCaml.</li>
+      <li>Passionate about the environment and how technology can be used to improve our chances at preventing mass, self-extinction due to the climate emergency.</li>
+      <li>Learned some "Computer Science" at <a href="https://www.pem.cam.ac.uk/">Pembroke</a>, a small proportion of which I still use.</li>
+    </ul>
+    <h2>Posts</h2>
+    <ul>
+      <%s! List.map render_post posts |> String.concat "" %>
+    </ul>
+  </div>
+
+let page posts =
+  Layout.html ~title:"Patrick Ferris" ~description:"Patrick's corner of the web" ~body:(content posts)

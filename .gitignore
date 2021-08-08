@@ -3,3 +3,5 @@ _build
 out
 var
 files
+sesame
+.credentials

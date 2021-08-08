@@ -12,12 +12,12 @@ let fetch_repo ~token repo =
       Current_git.fetch (Current.map Github.Api.Commit.id head)
   | None -> failwith "Using git + github requires a token"
 
-let load ?token dev : t =
-  if dev then `Fpath (Current.return Fpath.(v "./data"))
-  else
-    `Commit
-      (fetch_repo ~token
-         { Github.Repo_id.owner = "patricoferris"; name = "patricoferris.com" })
+let load ?token:_ _dev : t =
+  (*if dev then *) `Fpath (Current.return Fpath.(v "./data"))
+(* else
+   `Commit
+     (fetch_repo ~token
+        { Github.Repo_id.owner = "patricoferris"; name = "patricoferris.com" }) *)
 
 module Make (T : Sesame.Types.S with type Input.t = Fpath.t) = struct
   module Git_C = Git.Make (T)
