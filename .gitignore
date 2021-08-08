@@ -5,3 +5,4 @@ var
 files
 sesame
 .credentials
+deploy.sh

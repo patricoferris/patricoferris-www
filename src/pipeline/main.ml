@@ -31,9 +31,9 @@ let gcloud_deploy () =
   Gcloud.deploy config
 
 let drop_top_dir path =
-  match Fpath.relativize ~root:(Fpath.v "./data") path with 
-    | Some p -> p
-    | _ -> path
+  match Fpath.relativize ~root:(Fpath.v "./data") path with
+  | Some p -> p
+  | _ -> path
 
 let pipeline b_unikernel dev () =
   let db = Db.load dev in
@@ -43,18 +43,25 @@ let pipeline b_unikernel dev () =
       db
   in
   let htmls =
-    Bos.OS.Dir.create (Fpath.(dst / "posts")) |> ignore;
+    Bos.OS.Dir.create Fpath.(dst / "posts") |> ignore;
     Post.Html.build ~label:"building html" posts
     |> Current.map (fun hs ->
            List.map
              (fun { Post.H.path; html } ->
-               (Fpath.(dst / "posts" // Sesame.Utils.filename_to_html (v path)), html))
+               ( Fpath.(dst / "posts" // Sesame.Utils.filename_to_html (v path)),
+                 html ))
              hs)
   in
   let pages =
-    let open Current.Syntax in
-    let* posts = posts in
-    Current.return [ (Fpath.(dst / "index.html"), Home_template.page (List.sort Post.compare posts)) ]
+    Current.bind
+      ~info:(Current.component "index page")
+      (fun posts ->
+        Current.return
+          [
+            ( Fpath.(dst / "index.html"),
+              Home_template.page (List.sort Post.compare posts) );
+          ])
+      posts
   in
   let html =
     Current.map (fun () -> dst)
@@ -65,9 +72,7 @@ let pipeline b_unikernel dev () =
            Copy.cp ~label:"assets"
              ~src:(Current.return Fpath.(v "data" / "assets"))
              dst;
-          Copy.cp ~label:"js"
-             ~src:(Current.return Fpath.(v "data" / "js"))
-             dst;
+           Copy.cp ~label:"js" ~src:(Current.return Fpath.(v "data" / "js")) dst;
            Copy.cp ~label:"css"
              ~src:(Current.return Fpath.(v "data" / "css" / "main.css"))
              dst;
@@ -91,7 +96,11 @@ let pipeline b_unikernel dev () =
         cp
     in
     if dev then Mirage.run_unikernel build
-    else Current.bind ~info:(Current.component "gcloud deploy") (fun _ -> gcloud_deploy ()) build
+    else
+      Current.bind
+        ~info:(Current.component "gcloud deploy")
+        (fun _ -> gcloud_deploy ())
+        build
   in
   if b_unikernel then
     let base = Current_docker.Default.pull ~schedule "ocaml/opam" in

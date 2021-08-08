@@ -1,3 +1,5 @@
-#require "digestif.ocaml";;
-#require "sesame";;
-#require "current-sesame";;
+#require "digestif.ocaml"
+
+#require "sesame"
+
+#require "current-sesame"

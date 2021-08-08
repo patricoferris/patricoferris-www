@@ -36,10 +36,11 @@ let dockerfile (t : t) =
   @@
   let deploy_script =
     Fmt.str
-      "gsutil rm gs://%s/unikernel.tar.gz && gsutil cp \
-       unikernel.tar.gz gs://%s && gcloud compute images delete %s && gcloud compute images create %s \
-       --source-uri gs://%s/unikernel.tar.gz && gcloud compute instances delete %s --zone %s && gcloud compute instances create %s --image %s \
-       --address %s --zone %s --machine-type %s"
+      "gsutil rm gs://%s/unikernel.tar.gz && gsutil cp unikernel.tar.gz \
+       gs://%s && gcloud compute images delete %s && gcloud compute images \
+       create %s --source-uri gs://%s/unikernel.tar.gz && gcloud compute \
+       instances delete %s --zone %s && gcloud compute instances create %s \
+       --image %s --address %s --zone %s --machine-type %s"
       t.bucket t.bucket t.image_name t.image_name t.bucket t.image_name t.zone
       t.image_name t.image_name t.image_name t.zone
       (machine_to_string t.machine_type)
@@ -48,5 +49,8 @@ let dockerfile (t : t) =
 
 let deploy t =
   let dockerfile = Current.return (`Contents (dockerfile t)) in
-  let image = Docker.build ~label:"unikernel" ~dockerfile ~pull:false `No_context in
-    Docker.run ~label:" -- gcloud deploy" image ~args:[ "/bin/bash"; "-c"; "./deploy.sh" ]
+  let image =
+    Docker.build ~label:"unikernel" ~dockerfile ~pull:false `No_context
+  in
+  Docker.run ~label:" -- gcloud deploy" image
+    ~args:[ "/bin/bash"; "-c"; "./deploy.sh" ]

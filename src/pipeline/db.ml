@@ -1,4 +1,4 @@
-(* Abstract over a Git repository for production and a file path 
+(* Abstract over a Git repository for production and a file path
    for development *)
 module Github = Current_github
 
