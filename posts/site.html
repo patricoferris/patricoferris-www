@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A detailed look at how you are able read this description.">
+    <script defer="defer" src="/js/main.js"></script> 
+    <link rel="stylesheet" href="/main.css" />
+    <title>An Incremental, Unikernel-deploying Website Pipeline</title>
+  </head>
+  <body>
+    <script src="/js/root.js"></script> 
+    <div class='nav'>
+      <a class='title' href='/'>home</a>
+      <a class='title' href='https://twitter.com/patricoferris'>@patricoferris</a>
+      <a href='#' id='toggle' class='title'>toggle dark</a>
+    </div>
+    <div class="content">
+  <div style="text-align: center;">
+    <h1 class="h1-title">An Incremental, Unikernel-deploying Website Pipeline</h1>
+    <p class="date">2021-08-08</p>
+    <hr>
+  </div>
+  <div class="content-body">
+    <p>It took me a whole year to get this very modest looking website off the ground. But here
+we are with something reasonably stable and functional. In short this site uses <a href="https://github.com/patricoferris/sesame">current-sesame</a>
+to build pages from markdown, yaml (or really any data source you write a <code>Sesame.S</code> for).
+The pipeline collects the output and then bundles it in to a customised <a href="https://github.com/robur/unipi">unipi MirageOS unikernel</a>. The rest
+of this post has a look at some of the interesting features and challenges I faced.</p>
+<img width="100%" alt="An OCurrent pipeline showing the information flow for this website. First the HTML is built, then the unikernel before deploying it" src="/assets/pipeline.png" />
+<h2>Sesame</h2>
+<p><a href="https://github.com/patricoferris/sesame">Sesame</a> is a very simple static site generator. It is essentially
+a series of transformations (as all site generation tools tend to be). The main transformation is from
+a &quot;jekyll format&quot; (yaml metadata and markdown) to HTML, something Sesame calls a <code>Collection</code>.</p>
+<pre><code><span class="ocaml-keyword">module</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Meta</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> </span><span class="ocaml-keyword">struct</span><span class="ocaml-source">
+</span><span class="ocaml-source">    </span><span class="ocaml-keyword">type</span><span class="ocaml-source"> </span><span class="ocaml-source">t</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> { </span><span class="ocaml-source">title</span><span class="ocaml-source"> </span><span class="ocaml-keyword">:</span><span class="ocaml-source"> </span><span class="ocaml-support">string</span><span class="ocaml-source"> }
+</span><span class="ocaml-source">
+</span><span class="ocaml-source">    </span><span class="ocaml-keyword">let </span><span class="ocaml-entity-name">of_yaml</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> 
+</span><span class="ocaml-source">      </span><span class="ocaml-keyword">function</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">`O</span><span class="ocaml-source"> </span><span class="ocaml-source">[</span><span class="ocaml-source"> </span><span class="ocaml-string-quoted">&quot;</span><span class="ocaml-string-quoted">title</span><span class="ocaml-string-quoted">&quot;</span><span class="ocaml-keyword">,</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">`String</span><span class="ocaml-source"> </span><span class="ocaml-source">title</span><span class="ocaml-source"> </span><span class="ocaml-source">]</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">-&gt;</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Ok</span><span class="ocaml-source"> { </span><span class="ocaml-source">title</span><span class="ocaml-source"> } </span><span class="ocaml-keyword">|</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">_</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">-&gt;</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Error</span><span class="ocaml-source"> </span><span class="ocaml-source">(</span><span class="ocaml-constant-language">`Msg</span><span class="ocaml-source"> </span><span class="ocaml-string-quoted">&quot;</span><span class="ocaml-string-quoted">Failed</span><span class="ocaml-string-quoted">&quot;</span><span class="ocaml-source">)</span><span class="ocaml-source">
+</span><span class="ocaml-source">    </span><span class="ocaml-keyword">let </span><span class="ocaml-entity-name">to_yaml</span><span class="ocaml-source"> </span><span class="ocaml-source">{ </span><span class="ocaml-source">title</span><span class="ocaml-source"> } </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">`O</span><span class="ocaml-source"> </span><span class="ocaml-source">[</span><span class="ocaml-source"> </span><span class="ocaml-string-quoted">&quot;</span><span class="ocaml-string-quoted">title</span><span class="ocaml-string-quoted">&quot;</span><span class="ocaml-keyword">,</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">`String</span><span class="ocaml-source"> </span><span class="ocaml-source">title</span><span class="ocaml-source"> </span><span class="ocaml-source">]</span><span class="ocaml-source">
+</span><span class="ocaml-source">  </span><span class="ocaml-keyword">end</span><span class="ocaml-source">
+</span><span class="ocaml-keyword">module</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">C</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Sesame</span><span class="ocaml-keyword">.</span><span class="ocaml-constant-language">Collection</span><span class="ocaml-keyword">.</span><span class="ocaml-constant-language">Make</span><span class="ocaml-source">(</span><span class="ocaml-constant-language">Meta</span><span class="ocaml-source">)</span><span class="ocaml-source">
+</span></code></pre><p>To make describing metadata easier, there's a <a href="https://github.com/patricoferris/ppx_deriving_yaml">ppx for deriving the yaml functions</a>.</p>
+<p>Sesame is very much a work in progress, but it also supports (in a limited way) image optimisation by generating user-defined
+resolutions and replacing uses of the images in markdown with a responsive image element using <code>srcset</code>s.</p>
+<p>The syntax highlighting is not performed on your client but instead at build time as a simple transformation over <a href="https://github.com/ocaml/omd">omd</a>
+AST using <a href="https://github.com/patricoferris/hilite">hilite</a>. Sesame is really for building simple, light-weight websites. <a href="https://medium.com/dailyjs/a-realworld-comparison-of-front-end-frameworks-2020-4e50655fe4c1">The smallest front-end framework</a> is the one that doesn't exist.</p>
+<p>The site does contain a small amount of Javascript to do the light/dark mode toggling. It's written with <a href="https://github.com/ocsigen/js_of_ocaml">js_of_ocaml</a> and <a href="https://erratique.ch/software/brr">brr</a>.</p>
+<h2>Current-sesame</h2>
+<p><a href="https://github.com/patricoferris/sesame">Current-sesame</a> is the &quot;OCurrent plugin&quot; form of sesame. Functors are provided
+to build pipeline stages that could for example read the filesystem and build collections.</p>
+<p>The benefit of OCurrent is that are dependencies are now tracked i.e. we know how information flows in our site generation
+graph. For example, some file <code>blog-post.md</code> is converted into a <code>Collection</code>, this collection is then passed through
+some HTML template, this <code>string</code> is then written to the filesystem.</p>
+<p>Do bare in mind that you are not limited to the file-system. You can pull in anything from anywhere with current-sesame. The beauty
+here is everything in your site happens at build time, <strong>but</strong> thanks to OCurrent you have a comprehensive monitoring system for free.
+This means you could build READMEs from your Github projects into your site, monitor them with the Github webhook so when there's a change
+your pipeline rebuilds and redeploys! <a href="https://github.com/patricoferris/sesame/blob/main/example/ocaml/changes.ml">Check out the fake OCaml website</a>, it does something similar I just didn't get around to adding the watching.</p>
+<h3>A live-reloading development server</h3>
+<h4>Watching Files</h4>
+<p>Thanks to the incremental pipeline, we can build a helpful live-reloading server on top of our website's information flow graph.
+Current-sesame handles this with the <code>Current-sesame.Watcher</code> module. At the heart of Sesame is the <code>Sesame.S</code> module type which
+describes a transformation from an <code>Input</code> type to an and <code>Output</code> type.</p>
+<pre><code><span class="ocaml-keyword">#</span><span class="ocaml-source"> </span><span class="ocaml-keyword">#</span><span class="ocaml-source">show</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Sesame</span><span class="ocaml-keyword">.</span><span class="ocaml-constant-language">Types</span><span class="ocaml-keyword">.</span><span class="ocaml-constant-language">S</span><span class="ocaml-source">
+</span><span class="ocaml-keyword">module</span><span class="ocaml-source"> </span><span class="ocaml-keyword">type</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">S</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source">
+</span><span class="ocaml-source">  </span><span class="ocaml-keyword">sig</span><span class="ocaml-source">
+</span><span class="ocaml-source">    module Input : Sesame.Types.Encodeable
+</span><span class="ocaml-source">    type t
+</span><span class="ocaml-source">    module Output :
+</span><span class="ocaml-source">      sig
+</span><span class="ocaml-source">        type t = t
+</span><span class="ocaml-source">        val encode : t -&gt; string
+</span><span class="ocaml-source">        val decode : string -&gt; t
+</span><span class="ocaml-source">        val pp : t Fmt.t
+</span><span class="ocaml-source">      </span><span class="ocaml-keyword">end</span><span class="ocaml-source">
+</span><span class="ocaml-source">    </span><span class="ocaml-keyword">val</span><span class="ocaml-source"> </span><span class="ocaml-source">build</span><span class="ocaml-source"> </span><span class="ocaml-keyword">:</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Input</span><span class="ocaml-keyword">.</span><span class="ocaml-source">t</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">-&gt;</span><span class="ocaml-source"> </span><span class="ocaml-source">(</span><span class="ocaml-source">t</span><span class="ocaml-keyword">,</span><span class="ocaml-source"> </span><span class="ocaml-source">[</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">`Msg</span><span class="ocaml-source"> </span><span class="ocaml-keyword">of</span><span class="ocaml-source"> </span><span class="ocaml-support">string</span><span class="ocaml-source"> </span><span class="ocaml-source">]</span><span class="ocaml-source">)</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Lwt_result</span><span class="ocaml-keyword">.</span><span class="ocaml-source">t</span><span class="ocaml-source">
+</span><span class="ocaml-source">  </span><span class="ocaml-keyword">end</span><span class="ocaml-source">
+</span></code></pre><p>This, it turns out, maps directly on to an OCurrent cache builder very seamlessly (in the OCurrent-world we have a <code>Key</code> and <code>Value</code>).</p>
+<p>Anything that matches <code>Sesame.S with type Input.t = Fpath.t</code> is up for being watched. Being watched means the watcher records paths with
+there OCurrent job identifiers. If the filesystem watcher notices a change to a file, then it looks up the job identifier for the path
+and triggers a rebuild.</p>
+<pre><code><span class="ocaml-keyword">#</span><span class="ocaml-source"> </span><span class="ocaml-keyword">#</span><span class="ocaml-source">show</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Current_sesame</span><span class="ocaml-keyword">.</span><span class="ocaml-constant-language">Make_watch</span><span class="ocaml-source">
+</span><span class="ocaml-keyword">module</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Make_watch</span><span class="ocaml-source"> </span><span class="ocaml-keyword">:</span><span class="ocaml-source">
+</span><span class="ocaml-source">  </span><span class="ocaml-keyword">functor</span><span class="ocaml-source">
+</span><span class="ocaml-source">    </span><span class="ocaml-source">(</span><span class="ocaml-constant-language">V</span><span class="ocaml-source"> </span><span class="ocaml-keyword">:</span><span class="ocaml-source"> </span><span class="ocaml-keyword">sig</span><span class="ocaml-source">
+</span><span class="ocaml-source">           module Input :
+</span><span class="ocaml-source">             sig
+</span><span class="ocaml-source">               type t = Fpath.t
+</span><span class="ocaml-source">               val encode : t -&gt; string
+</span><span class="ocaml-source">               val decode : string -&gt; t
+</span><span class="ocaml-source">               val pp : t Fmt.t
+</span><span class="ocaml-source">             </span><span class="ocaml-keyword">end</span><span class="ocaml-source">
+</span><span class="ocaml-source">           </span><span class="ocaml-keyword">type</span><span class="ocaml-source"> </span><span class="ocaml-source">t</span><span class="ocaml-source">
+</span><span class="ocaml-source">           </span><span class="ocaml-keyword">module</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Output</span><span class="ocaml-source"> </span><span class="ocaml-keyword">:</span><span class="ocaml-source">
+</span><span class="ocaml-source">             </span><span class="ocaml-keyword">sig</span><span class="ocaml-source">
+</span><span class="ocaml-source">               type t = t
+</span><span class="ocaml-source">               val encode : t -&gt; string
+</span><span class="ocaml-source">               val decode : string -&gt; t
+</span><span class="ocaml-source">               val pp : t Fmt.t
+</span><span class="ocaml-source">             </span><span class="ocaml-keyword">end</span><span class="ocaml-source">
+</span><span class="ocaml-source">           </span><span class="ocaml-keyword">val</span><span class="ocaml-source"> </span><span class="ocaml-source">build</span><span class="ocaml-source"> </span><span class="ocaml-keyword">:</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Input</span><span class="ocaml-keyword">.</span><span class="ocaml-source">t</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">-&gt;</span><span class="ocaml-source"> </span><span class="ocaml-source">(</span><span class="ocaml-source">t</span><span class="ocaml-keyword">,</span><span class="ocaml-source"> </span><span class="ocaml-source">[</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">`Msg</span><span class="ocaml-source"> </span><span class="ocaml-keyword">of</span><span class="ocaml-source"> </span><span class="ocaml-support">string</span><span class="ocaml-source"> </span><span class="ocaml-source">]</span><span class="ocaml-source">)</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Lwt_result</span><span class="ocaml-keyword">.</span><span class="ocaml-source">t</span><span class="ocaml-source">
+</span><span class="ocaml-source">         </span><span class="ocaml-keyword">end</span><span class="ocaml-source">)</span><span class="ocaml-source">
+</span><span class="ocaml-source">    </span><span class="ocaml-keyword-operator">-&gt;</span><span class="ocaml-source">
+</span><span class="ocaml-source">    </span><span class="ocaml-keyword">sig</span><span class="ocaml-source">
+</span><span class="ocaml-source">      module C :
+</span><span class="ocaml-source">        sig
+</span><span class="ocaml-source">          val get :
+</span><span class="ocaml-source">            ?schedule:Current_cache.Schedule.t -&gt;
+</span><span class="ocaml-source">            Current_sesame.Make_cache(Current_sesame.SesameInfo)(V).t -&gt;
+</span><span class="ocaml-source">            Fpath.t -&gt; V.t Current.Primitive.t
+</span><span class="ocaml-source">          val invalidate : Fpath.t -&gt; unit
+</span><span class="ocaml-source">          val reset : db:bool -&gt; unit
+</span><span class="ocaml-source">        </span><span class="ocaml-keyword">end</span><span class="ocaml-source">
+</span><span class="ocaml-source">      </span><span class="ocaml-keyword">val</span><span class="ocaml-source"> </span><span class="ocaml-source">build</span><span class="ocaml-source"> </span><span class="ocaml-keyword">:</span><span class="ocaml-source">
+</span><span class="ocaml-source">        ?</span><span class="ocaml-source">watcher</span><span class="ocaml-keyword">:</span><span class="ocaml-source">(</span><span class="ocaml-constant-language">Fpath</span><span class="ocaml-keyword">.</span><span class="ocaml-source">t</span><span class="ocaml-keyword">,</span><span class="ocaml-source"> </span><span class="ocaml-support">string</span><span class="ocaml-source">)</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Hashtbl</span><span class="ocaml-keyword">.</span><span class="ocaml-source">t</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">-&gt;</span><span class="ocaml-source">
+</span><span class="ocaml-source">        ?</span><span class="ocaml-source">label</span><span class="ocaml-keyword">:</span><span class="ocaml-support">string</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">-&gt;</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Fpath</span><span class="ocaml-keyword">.</span><span class="ocaml-source">t</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Current</span><span class="ocaml-keyword">.</span><span class="ocaml-source">term</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">-&gt;</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">V</span><span class="ocaml-keyword">.</span><span class="ocaml-source">t</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Current</span><span class="ocaml-keyword">.</span><span class="ocaml-source">term</span><span class="ocaml-source">
+</span><span class="ocaml-source">    </span><span class="ocaml-keyword">end</span><span class="ocaml-source">
+</span></code></pre><h4>Live-reloading</h4>
+<p>Rebuilding the HTML is only half the battle. The development server also has to force a client-side refresh in the browser. The watcher also
+returns a <code>Lwt_condition.t</code> which is broadcast to when something changes. The development server (written with <a href="https://github.com/aantron/dream">dream</a>)
+opens a websocket with the client and when the condition variable is broadcast to, it tells the client to re-render. Every HTML page the development
+server sends is modified to include a little bit of javascript to listen on this websocket and refresh when told to.</p>
+<h2>Unikernels</h2>
+<p>This isn't the post for explaining the wonderful world of <a href="https://mirage.io">MirageOS unikernels</a>. Instead just think of them as tiny executables with a
+small footprint. The pipeline for this website uses a modified version of the <a href="https://github.com/roburio/unipi">unipi unikernel</a> from the good folk at <a href="https://robur.io/">robur</a>. The major benefit for me of reusing this unikernel is (1) it was built by more talented people than myself and (2) it does lets-encrypt certificate provisioning all by itself!</p>
+<p>It's modified in a way that makes it substantially &quot;less cool&quot;. Unipi uses <a href="https://irmin.org">irmin</a> to pull a git repository and serve it over HTTP/HTTPS. For example,
+you could take your Gatsby/Nextjs site, build it and push it to a branch and have unipi serve it. The modification I made was to remove all of irmin from the unikernel
+and convert it to using a plain old, <a href="https://github.com/patricoferris/unipi/tree/simple-kv">read-only mirage key-value store</a>.</p>
+<h3>Unikernel in development</h3>
+<p>For testing it's useful to not only use current-sesame's development server but also go through the motions of building the unikernel. So between the pipeline's development
+mode and production mode, there's a unikernel development mode. This builds the site as before, it also builds the git-submoduled, modified unipi unikernel inside a docker image thanks to <a href="https://v3.ocaml.org/p/current_docker/0.5">OCurrent's Docker plugin</a>. It builds the unikernel using the <code>unix</code> backend and then runs it without TLS.</p>
+<h3>Unikernel in deployment</h3>
+<p>This site is deployed on Google Cloud. A priority of mine is to remove the dependency on Google and self-host this probably using <a href="https://github.com/roburio/albatross">albatross</a>.</p>
+<p>Running the pipeline in production is very similar to the &quot;unikernel in development&quot; mode, except now at the end of the pipeline the unikernel is built using the <code>virtio</code> backend, bundled up by <a href="https://github.com/Solo5/solo5">solo5</a> and deployed to an <code>f1-micro</code> instance on Google Cloud. For the interested reader you can take a look in the <a href="https://github.com/patricoferris/patricoferris-www/blob/main/src/gcloud.ml">gcloud.ml</a> file. It essentially amounts to the following steps:</p>
+<ol>
+<li>Create a bucket and copy the <code>.tar.gz</code> unikernel to the bucket (the whole thing is only megabytes in size!)
+</li>
+<li>Create an image from this unikernel
+</li>
+<li>Deploy the instance with the right firewall rules, at the right address etc.
+</li>
+</ol>
+<p>The majority of this &quot;Google Cloud workflow&quot; is thanks to <a href="https://www.riseos.com/blog/2016/09/13/continuously-deploying-mirage-unikernels-to-google-compute-engine-using-circle-ci.html">this blog post</a> and help from <a href="https://twitter.com/Dinoosaure">@dinosaure</a>.</p>
+<h2>What's next?</h2>
+<p>I'm pretty happy with the different bits of this workflow. There are definitely lots of rough corners:</p>
+<ul>
+<li>Reduce the path mangling, there's quite a bit and there should be a better story in Sesame for the default paths
+</li>
+<li>Image optimisation doesn't work as well as I want it too
+</li>
+<li>Better caching strategy between OCurrent and Sesame
+</li>
+<li>Self-host the unikernel
+</li>
+<li>Editing the content... it would be nice to have a CMS based on the types Sesame understands
+</li>
+</ul>
+<p>For me though, I think I'm going to let the site sit for a bit now that I can quite easily write new content and redeploy it. There's lot of other interesting OCaml projects
+to do in the mean time.</p>
+
+  </div>
+</div>
+  </body>
+</html>
