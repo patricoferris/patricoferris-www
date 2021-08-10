@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Git Version Control for your programs data">
+    <script defer="defer" src="/js/main.js"></script> 
+    <link rel="stylesheet" href="/main.css" />
+    <title>An Introduction to Mergeable Replicated Data Types by building a Collaborative Markdown Editor</title>
+  </head>
+  <body>
+    <script src="/js/root.js"></script> 
+    <div class='nav'>
+      <a class='title' href='/'>home</a>
+      <a class='title' href='https://twitter.com/patricoferris'>@patricoferris</a>
+      <a href='#' id='toggle' class='title'>toggle dark</a>
+    </div>
+    <div class="content">
+  <div style="text-align: center;">
+    <h1 class="h1-title">An Introduction to Mergeable Replicated Data Types by building a Collaborative Markdown Editor</h1>
+    <p class="date">2021-08-10</p>
+    <hr>
+  </div>
+  <div class="content-body">
+    <!-- Introduction contextualising eberything -->
+<h2>Mergeable Data Types</h2>
+<p>Normal pieces of data in a program generally exist with some assumption that they will be accessed or modified <em>sequentially</em>. The program will not interact with the data concurrently. This sequential view of programming is incredible useful and matches the model many have whilst programming.</p>
+<!-- Discuss replication -->
+<p>Mergeable data types take a different approach based on versioned state and a so-called three-way merge function. Those familiar with [git][git] should have a good intuition for this.</p>
+<pre><code><span class="ocaml-keyword">module</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Set</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> </span><span class="ocaml-keyword">struct</span><span class="ocaml-source">
+</span><span class="ocaml-source">  </span><span class="ocaml-keyword">type</span><span class="ocaml-source"> </span><span class="ocaml-source">el</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> </span><span class="ocaml-other">'a</span><span class="ocaml-source">
+</span><span class="ocaml-source">  </span><span class="ocaml-keyword">type</span><span class="ocaml-source"> </span><span class="ocaml-source">t</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> 
+</span><span class="ocaml-keyword">end</span><span class="ocaml-source">
+</span></code></pre><h2>Replication using Stores and Branches</h2>
+<h2>Merging Markdown</h2>
+<p>[git]:</p>
+
+  </div>
+</div>
+  </body>
+</html>
