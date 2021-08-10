@@ -8,6 +8,7 @@ type t =
 let fetch_repo ~token repo =
   match token with
   | Some token ->
+      let token = Bos.OS.File.read (Fpath.v token) |> Rresult.R.get_ok in
       let head = Github.Api.head_commit (Github.Api.of_oauth token) repo in
       Current_git.fetch (Current.map Github.Api.Commit.id head)
   | None -> failwith "Using git + github requires a token"
@@ -17,7 +18,7 @@ let load ?token:_ _dev : t =
 (* else
    `Commit
      (fetch_repo ~token
-        { Github.Repo_id.owner = "patricoferris"; name = "patricoferris.com" }) *)
+        {  }) *)
 
 module Make (T : Sesame.Types.S with type Input.t = Fpath.t) = struct
   module Git_C = Git.Make (T)

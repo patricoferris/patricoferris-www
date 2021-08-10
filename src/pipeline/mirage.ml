@@ -13,7 +13,9 @@ let dockerfile ~opts ~base ~backend dev =
   from (Docker.Image.digest base)
   @@ run "opam install mirage -y"
   @@ workdir "/home/opam"
-  @@ copy ~chown:"opam" ~src:[ "./unikernel" ] ~dst:"./unikernel" ()
+  @@ (if dev then
+      copy ~chown:"opam" ~src:[ "./unikernel" ] ~dst:"./unikernel" ()
+     else run "git clone https://github.com/roburio/unipi ./unikernel/unipi")
   @@ workdir "/home/opam/unikernel/unipi"
   @@ run "opam exec -- mirage configure -t %s %s"
        (backend_to_string backend)
@@ -32,7 +34,13 @@ let build ~out ~base dev =
   (* TODO: make this nicer *)
   let opts =
     if dev then ""
-    else "--dhcp true --tls true --production true --hostname patricoferris.com"
+    else
+      let hook = Sys.getenv "HOOK" in
+      Fmt.str
+        "--dhcp true --tls true --production true --hostname patricoferris.com \
+         --hook %s --remote \
+         \"https://github.com/patricoferris/patricoferris-www.git#live\""
+        hook
   in
   let open Current.Syntax in
   let dockerfile =

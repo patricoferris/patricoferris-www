@@ -12,6 +12,9 @@ let dst = Current.state_dir "files"
 
 let unikernel = Current.state_dir "unikernel"
 
+let repo =
+  { Current_github.Repo_id.owner = "patricoferris"; name = "patricoferris-www" }
+
 let gcloud_deploy () =
   let project_id = Sys.getenv "GCLOUD_PROJECT_ID" in
   let credentials =
@@ -35,7 +38,7 @@ let drop_top_dir path =
   | Some p -> p
   | _ -> path
 
-let pipeline b_unikernel dev () =
+let pipeline token b_unikernel deploy dev () =
   let db = Db.load dev in
   let posts =
     Post.Fetch.get ~watcher ~label:"fetching posts"
@@ -97,19 +100,27 @@ let pipeline b_unikernel dev () =
     in
     if dev then Mirage.run_unikernel build
     else
+      let deployment =
+        if deploy then
+          Current.bind
+            ~info:(Current.component "gcloud deploy")
+            (fun _ -> gcloud_deploy ())
+            build
+        else Current.return ()
+      in
       Current.bind
-        ~info:(Current.component "gcloud deploy")
-        (fun _ -> gcloud_deploy ())
-        build
+        (fun _ ->
+          Git_live.update ~out:dst ~branch:"live" (Db.fetch_repo ~token repo))
+        deployment
   in
   if b_unikernel then
     let base = Current_docker.Default.pull ~schedule "ocaml/opam" in
     mirage base html
   else Current.map (fun _ -> ()) html
 
-let main unikernel dev =
+let main token unikernel deploy dev =
   let open Lwt.Syntax in
-  let engine = Current.Engine.create (pipeline unikernel dev) in
+  let engine = Current.Engine.create (pipeline token unikernel deploy dev) in
   let routes = Current_web.routes engine in
   let site =
     Current_web.Site.v ~name:"patricoferris.com pipeline"
@@ -148,9 +159,18 @@ let unikernel =
        ~doc:"For development, this will build and run the unikernel locally"
        ~docv:"UNIKERNEL" [ "u"; "unikernel" ]
 
+let deploy =
+  Arg.value @@ Arg.flag
+  @@ Arg.info ~doc:"Will deploy the unikernel" ~docv:"DEPLOY" [ "deploy" ]
+
+let token =
+  Arg.value
+  @@ Arg.(opt (some file) None)
+  @@ Arg.info ~doc:"Github token file" ~docv:"TOKEN" [ "t"; "token" ]
+
 let cmd =
   let doc = "Current-sesame Pipeline" in
-  ( Term.(term_result (const main $ unikernel $ dev)),
+  ( Term.(term_result (const main $ token $ unikernel $ deploy $ dev)),
     Term.info "simple pipeline" ~doc )
 
 let () = Term.(exit @@ eval cmd)

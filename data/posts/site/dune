@@ -1,0 +1,3 @@
+(mdx
+ (preludes prelude.ml)
+ (files *.md))
