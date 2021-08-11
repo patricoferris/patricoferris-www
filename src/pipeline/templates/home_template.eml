@@ -1,5 +1,5 @@
 let render_post ( { meta; path; _ } : Post_intf.C.t) =
-  let path = Fpath.((v "./posts" // Sesame.Utils.filename_to_html (v path)) |> to_string) in 
+  let path = Fpath.((v "./posts" // Sesame.Path.last_dir_and_file (Fpath.v path)) |> Sesame.Utils.html_path |> to_string) in 
   <li>
     <a href="<%s path %>">
       <%s! meta.title %>
@@ -12,7 +12,7 @@ let content posts =
     <ul>
       <li>At <a href="https://ocamllabs.io">OCaml Labs</a> working on open-source OCaml.</li>
       <li>Passionate about the environment and how technology can be used to improve our chances at preventing mass, self-extinction due to the climate emergency.</li>
-      <li>Learned some "Computer Science" at <a href="https://www.pem.cam.ac.uk/">Pembroke</a>, a small proportion of which I still use.</li>
+      <li>Did some "Computer Science" at <a href="https://www.pem.cam.ac.uk/">Pembroke</a>.</li>
     </ul>
     <h2>Posts</h2>
     <ul>

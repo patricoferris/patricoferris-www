@@ -4,5 +4,11 @@ build:
 dev:
 				dune exec --profile release -- ./src/pipeline/main.exe -d
 
-unikernel:
+dev-unikernel:
 				dune exec --profile release -- ./src/pipeline/main.exe -d -u
+
+deploy:
+				./deploy.sh
+
+live:
+				dune exec --profile release -- ./src/pipeline/main.exe -u --token ./.token

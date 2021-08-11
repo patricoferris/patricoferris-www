@@ -7,3 +7,5 @@ sesame
 .credentials
 .token
 deploy.sh
+ocurrent
+current_git.0.5

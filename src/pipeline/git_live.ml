@@ -28,14 +28,21 @@ module Builder = struct
     Current.Process.exec ~cwd:dst ~cancellable:true ~job
       ("", [| "git"; "checkout"; branch |])
     >>= fun _ ->
-    Current.Process.exec ~cancellable:true ~job
-      ("", [| "cp"; "-a"; Fpath.to_string out; Fpath.to_string dst |])
+    (* Should be able to turn off submodule checkout *)
+    Current.Process.exec ~cwd:dst ~cancellable:true ~job
+      ("", [| "rm"; "-rf"; "hilite"; "unipi" |])
     >>= fun _ ->
     Current.Process.exec ~cwd:dst ~cancellable:true ~job
-      ("", [| "git"; "commit"; "-am"; "update live site" |])
+      ("", [| "cp"; "-a"; Fpath.to_string out ^ "/"; Fpath.to_string dst |])
     >>= fun _ ->
     Current.Process.exec ~cwd:dst ~cancellable:true ~job
-      ("", [| "git"; "push"; "origin"; branch |])
+      ("", [| "git"; "add"; "." |])
+    >>= fun _ ->
+    Current.Process.exec ~cwd:dst ~cancellable:true ~job
+      ("", [| "git"; "commit"; "-m"; "update live site" |])
+    >>= fun _ ->
+    Current.Process.exec ~cwd:dst ~cancellable:true ~job
+      ("", [| "git"; "push" |])
 end
 
 module GC = Current_cache.Make (Builder)

@@ -38,6 +38,10 @@ let drop_top_dir path =
   | Some p -> p
   | _ -> path
 
+let post_path path =
+  let f = Sesame.Path.last_dir_and_file (Fpath.v path) in
+  Sesame.Utils.html_path f
+
 let pipeline token b_unikernel deploy dev () =
   let db = Db.load dev in
   let posts =
@@ -45,14 +49,26 @@ let pipeline token b_unikernel deploy dev () =
       ~path:(Some (Fpath.v "posts"))
       db
   in
+  let drafts_and_posts =
+    Current.map
+      (List.partition (fun p ->
+           match p.Post_intf.C.meta.draft with Some true -> true | _ -> false))
+      posts
+  in
   let htmls =
-    Bos.OS.Dir.create Fpath.(dst / "posts") |> ignore;
-    Post.Html.build ~label:"building html" posts
+    Post.Html.build ~label:"building html" (Current.map snd drafts_and_posts)
     |> Current.map (fun hs ->
            List.map
              (fun { Post.H.path; html } ->
-               ( Fpath.(dst / "posts" // Sesame.Utils.filename_to_html (v path)),
-                 html ))
+               (Fpath.(dst / "posts" // post_path path), html))
+             hs)
+  in
+  let drafts =
+    Post.Html.build ~label:"building html" (Current.map fst drafts_and_posts)
+    |> Current.map (fun hs ->
+           List.map
+             (fun { Post.H.path; html } ->
+               (Fpath.(dst / "posts" / "drafts" // post_path path), html))
              hs)
   in
   let pages =
@@ -64,14 +80,15 @@ let pipeline token b_unikernel deploy dev () =
             ( Fpath.(dst / "index.html"),
               Home_template.page (List.sort Post.compare posts) );
           ])
-      posts
+      (Current.map snd drafts_and_posts)
   in
   let html =
     Current.map (fun () -> dst)
     @@ Current.all
          [
-           Current_sesame.Local.save_list htmls;
-           Current_sesame.Local.save_list pages;
+           Current_sesame.Local.save_list ~create_dirs:true htmls;
+           Current_sesame.Local.save_list ~create_dirs:true drafts;
+           Current_sesame.Local.save_list ~create_dirs:true pages;
            Copy.cp ~label:"assets"
              ~src:(Current.return Fpath.(v "data" / "assets"))
              dst;
@@ -92,21 +109,28 @@ let pipeline token b_unikernel deploy dev () =
           ("copy site", Copy.cp ~label:"website" ~src:html unikernel);
         ]
     in
-    let build =
-      Current.bind
-        ~info:(Current.component "site + unipi")
-        (fun _ -> Mirage.build ~base ~out:(Current.return unikernel) dev)
-        cp
-    in
-    if dev then Mirage.run_unikernel build
+    if dev then
+      let build =
+        Current.bind
+          ~info:(Current.component "site + unipi")
+          (fun _ -> Mirage.build ~base ~out:(Current.return unikernel) dev)
+          cp
+      in
+      Mirage.run_unikernel build
     else
       let deployment =
         if deploy then
+          let build =
+            Current.bind
+              ~info:(Current.component "site + unipi")
+              (fun _ -> Mirage.build ~base ~out:(Current.return unikernel) dev)
+              cp
+          in
           Current.bind
             ~info:(Current.component "gcloud deploy")
             (fun _ -> gcloud_deploy ())
             build
-        else Current.return ()
+        else Current.ignore_value html
       in
       Current.bind
         (fun _ ->

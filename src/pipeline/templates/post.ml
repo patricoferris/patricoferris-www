@@ -18,5 +18,5 @@ let compare (a : Post_intf.C.t) (b : Post_intf.C.t) =
   in
   Int.compare (date_to_int b.meta.date) (date_to_int a.meta.date)
 
-module Fetch = Db.Make (Utils.Dir (Post_intf.C))
+module Fetch = Db.Make (Utils.RecDir (Post_intf.C))
 module Html = Current_sesame.Make (Utils.List (H))

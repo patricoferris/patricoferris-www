@@ -5,6 +5,7 @@ module Meta = struct
   type t = {
     title : string;
     description : string;
+    draft : bool option;
     date : string;
     authors : string list;
     topics : string list;
