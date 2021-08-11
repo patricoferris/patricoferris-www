@@ -18,20 +18,20 @@
     <div class="content">
   <div style="text-align: center;">
     <h1 class="h1-title">An Incremental, Unikernel-deploying Website Pipeline</h1>
-    <p class="date">2021-08-08</p>
+    <p class="date">2021-08-11</p>
     <hr>
   </div>
   <div class="content-body">
-    <p>It took me a whole year to get this very modest looking website off the ground. But here
-we are with something reasonably stable and functional. In short this site uses <a href="https://github.com/patricoferris/sesame">current-sesame</a>
-to build pages from markdown, yaml (or really any data source you write a <code>Sesame.S</code> for).
-The pipeline collects the output and then bundles it in to a customised <a href="https://github.com/robur/unipi">unipi MirageOS unikernel</a>. The rest
-of this post has a look at some of the interesting features and challenges I faced.</p>
-<img width="100%" alt="An OCurrent pipeline showing the information flow for this website. First the HTML is built, then the unikernel before deploying it" src="/assets/pipeline.png" />
+    <p>It took me a whole year to get this very modest looking website off the ground. But here we are with something reasonably stable and functional. In short this site uses <a href="https://github.com/patricoferris/sesame">current-sesame</a>
+to build pages from markdown, yaml (or really any data source you write a <code>Sesame.Types.S</code> for). The pipeline collects the output and can push it to the <code>live</code> branch of the repository. The pipeline can also deploy a <a href="https://github.com/robur/unipi">unipi MirageOS unikernel</a> to Google Cloud which tracks this branch using Irmin.</p>
+<p>In the beginning I had originally used a <a href="https://github.com/patricoferris/unipi/tree/simple-kv">modified unipi</a> so I could bundle the output into the unikernel at build-time, but redeploying the unikernel meant redoing the lets-encrypt setup so I have gone back to the irmin version for deployment.</p>
+<img width="100%" alt="An OCurrent pipeline showing the information flow for this website. First the HTML is built, then the unikernel before deploying it" src="/assets/pipeline-old.png" />
+<p>This image shows the old &quot;build the site, build the unikernel and deploy&quot; pipeline. The modified unikernel is still used in <code>dev-unikernel</code> mode which builds and runs the unikernel locally.</p>
+<img width="100%" alt="An OCurrent pipeline showing the website first being built before being pushed to the live branch" src="/assets/pipeline.png" />
+<p>This is now the more common workflow, building the site and pushing the contents to the <code>live</code> branch of the repository.</p>
+<p>The site could work by monitoring the upstream repository and rebuilding the site and pushing to the live branch when something changes, but I can't really justify leaving the pipeline running like that for the amount of updates I'm likely to do.</p>
 <h2>Sesame</h2>
-<p><a href="https://github.com/patricoferris/sesame">Sesame</a> is a very simple static site generator. It is essentially
-a series of transformations (as all site generation tools tend to be). The main transformation is from
-a &quot;jekyll format&quot; (yaml metadata and markdown) to HTML, something Sesame calls a <code>Collection</code>.</p>
+<p><a href="https://github.com/patricoferris/sesame">Sesame</a> is a very simple static site generator. It is essentially a series of transformations (as all site generation tools tend to be). The main transformation is from a &quot;jekyll format&quot; (yaml metadata and markdown) to HTML, something Sesame calls a <code>Collection</code>.</p>
 <pre><code><span class="ocaml-keyword">module</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Meta</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> </span><span class="ocaml-keyword">struct</span><span class="ocaml-source">
 </span><span class="ocaml-source">    </span><span class="ocaml-keyword">type</span><span class="ocaml-source"> </span><span class="ocaml-source">t</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source"> { </span><span class="ocaml-source">title</span><span class="ocaml-source"> </span><span class="ocaml-keyword">:</span><span class="ocaml-source"> </span><span class="ocaml-support">string</span><span class="ocaml-source"> }
 </span><span class="ocaml-source">
@@ -59,8 +59,7 @@ your pipeline rebuilds and redeploys! <a href="https://github.com/patricoferris/
 <h3>A live-reloading development server</h3>
 <h4>Watching Files</h4>
 <p>Thanks to the incremental pipeline, current-sesame comes with a helpful live-reloading server on top of our website's information flow graph.
-Current-sesame handles this with the <code>Current-sesame.Watcher</code> module. At the heart of Sesame is the <code>Sesame.Types.S</code> module type which
-describes a transformation from an <code>Input</code> to an <code>Output</code>.</p>
+Current-sesame handles this with the <code>Current-sesame.Watcher</code> module. At the heart of Sesame is the <code>Sesame.Types.S</code> module type which describes a transformation from an <code>Input</code> to an <code>Output</code>.</p>
 <pre><code><span class="ocaml-keyword">#</span><span class="ocaml-source"> </span><span class="ocaml-keyword">#</span><span class="ocaml-source">show</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">Sesame</span><span class="ocaml-keyword">.</span><span class="ocaml-constant-language">Types</span><span class="ocaml-keyword">.</span><span class="ocaml-constant-language">S</span><span class="ocaml-source">
 </span><span class="ocaml-keyword">module</span><span class="ocaml-source"> </span><span class="ocaml-keyword">type</span><span class="ocaml-source"> </span><span class="ocaml-constant-language">S</span><span class="ocaml-source"> </span><span class="ocaml-keyword-operator">=</span><span class="ocaml-source">
 </span><span class="ocaml-source">  </span><span class="ocaml-keyword">sig</span><span class="ocaml-source">
@@ -122,41 +121,37 @@ opens a websocket with the client and when the condition variable is broadcast t
 server sends is modified to include a little bit of javascript which listens on this websocket and refreshes when it receives a message.</p>
 <h2>Unikernels</h2>
 <p>This isn't the post for explaining the wonderful world of <a href="https://mirage.io">MirageOS unikernels</a>. Instead just think of them as tiny executables with a
-small footprint. The pipeline for this website uses a modified version of the <a href="https://github.com/roburio/unipi">unipi unikernel</a> from the good folk at <a href="https://robur.io/">robur</a>. The major benefit of reusing this unikernel is (1) it was built by more talented people than myself and (2) it does lets-encrypt certificate provisioning all by itself!</p>
-<p>It's modified in a way that makes it substantially &quot;less cool&quot;. Unipi uses <a href="https://irmin.org">irmin</a> to pull a git repository and serve it over HTTP/HTTPS. For example,
-you could take your Gatsby/Nextjs site, build it and push it to a branch and have unipi serve it. The modification I made was to remove all of irmin from the unikernel
-and convert it to using a plain old, <a href="https://github.com/patricoferris/unipi/tree/simple-kv">read-only mirage key-value store</a>.</p>
+small footprint. The pipeline for this website uses the <a href="https://github.com/roburio/unipi">unipi unikernel</a> from the good folk at <a href="https://robur.io/">robur</a>. The unikernel serves a git repository using <a href="https://irmin.io">irmin</a> and performs the lets-encrypt provisioning all by itself!</p>
 <h3>Unikernel in development</h3>
-<p>For testing it's useful to not only use current-sesame's development server but also go through the motions of building the unikernel. So between the pipeline's development
-mode and production mode, there's a unikernel development mode. This builds the site as before, it also builds the git-submoduled, modified unipi unikernel inside a docker image thanks to <a href="https://v3.ocaml.org/p/current_docker/0.5">OCurrent's Docker plugin</a>. It builds the unikernel using the <code>unix</code> backend and then runs it without TLS.</p>
+<p>For testing it's useful to not only use current-sesame's development server but also go through the motions of building the unikernel. So between the pipeline's development mode and production mode, there's a unikernel development mode. This builds the site as before, it also builds the git-submoduled, modified unipi unikernel inside a docker image thanks to <a href="https://v3.ocaml.org/p/current_docker/0.5">OCurrent's Docker plugin</a>. It builds the unikernel using the <code>unix</code> backend and then runs it without TLS.</p>
 <h3>Unikernel in deployment</h3>
 <p>This site is deployed on Google Cloud. A priority of mine is to remove the dependency on Google and self-host this probably using <a href="https://github.com/roburio/albatross">albatross</a>.</p>
 <p>Running the pipeline in production is very similar to the &quot;unikernel in development&quot; mode, except now at the end of the pipeline the unikernel is built using the <code>virtio</code> backend, bundled up by <a href="https://github.com/Solo5/solo5">solo5</a> and deployed to an <code>f1-micro</code> instance on Google Cloud. For the interested reader you can take a look in the <a href="https://github.com/patricoferris/patricoferris-www/blob/main/src/gcloud.ml">gcloud.ml</a> file. It essentially amounts to the following steps:</p>
 <ol>
-<li>Create a bucket and copy the <code>.tar.gz</code> unikernel to the bucket (the whole thing is only megabytes in size!)
+<li>Create a bucket and copy the <code>.tar.gz</code> unikernel to the bucket.
 </li>
-<li>Create an image from this unikernel
+<li>Create an image from this unikernel.
 </li>
 <li>Deploy the instance with the right firewall rules, at the right address etc.
 </li>
 </ol>
 <p>The majority of this &quot;Google Cloud workflow&quot; is thanks to <a href="https://www.riseos.com/blog/2016/09/13/continuously-deploying-mirage-unikernels-to-google-compute-engine-using-circle-ci.html">this blog post</a> and help from <a href="https://twitter.com/Dinoosaure">@dinosaure</a>.</p>
 <h2>What's next?</h2>
-<p>I'm pretty happy with the different bits of this workflow. There are definitely lots of rough corners:</p>
+<p>The deployment of the unikernel from the pipeline is slight overkill. It is more of an artefact now from when the production mode deployed a unikernel every time. Now, it is a fancy shell script.</p>
+<p>Sesame feels promising, it needs a substantial amount of work though. Sometimes the caching means things don't get rebuilt when they should which is annoying. Some other areas of improvement include:</p>
 <ul>
-<li>Reduce the path mangling, there's quite a bit and there should be a better story in Sesame for the default paths
+<li>Reduce the path mangling, there's quite a bit and there should be a better story in Sesame for the default paths.
 </li>
-<li>Image optimisation doesn't work as well as I want it too
+<li>Image optimisation doesn't work as well as I want it too.
 </li>
-<li>Better caching strategy between OCurrent and Sesame
+<li>Better caching strategy between OCurrent and Sesame.
 </li>
-<li>Self-host the unikernel
+<li>Self-host the unikernel.
 </li>
-<li>Editing the content... it would be nice to have a CMS based on the types Sesame understands
+<li>Editing the content... it would be nice to have a CMS based on the types Sesame understands.
 </li>
 </ul>
-<p>For me though, I think I'm going to let the site sit for a bit now that I can quite easily write new content and redeploy it. There's lot of other interesting OCaml projects
-to do in the mean time.</p>
+<p>For me though, I think I'm going to let the site sit for a bit now that I can quite easily write new content and redeploy it. There's lot of other interesting OCaml projects to do in the mean time.</p>
 
   </div>
 </div>
